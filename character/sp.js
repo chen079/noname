@@ -114,7 +114,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 			yuanshu:['male','qun',4,['yongsi','weidi']],
 			sp_diaochan:['female','qun',3,['lihun','rebiyue']],
 			sp_zhaoyun:['male','qun',3,['ollongdan','chongzhen']],
-			liuxie:['male','qun',3,['tianming','mizhao']],
+			liuxie:['male','qun',3,['tianming','mizhao','twzhuiting'],['zhu']],
 			zhugejin:['male','wu',3,['olhuanshi','olhongyuan','olmingzhe']],
 			zhugeke:['male','wu',3,['aocai','duwu']],
 			guanyinping:['female','shu',3,['huxiao','xueji','wuji']],
@@ -132,7 +132,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 			sunhao:['male','wu',5,['recanshi','rechouhai','guiming'],['zhu']],
 			shixie:['male','qun',3,['rebiluan','relixia']],
 			mayunlu:['female','shu',4,['fengpo','mashu']],
-			zhanglu:['male','qun',3,['yishe','bushi','midao']],
+			zhanglu:['male','qun',3,['yishe','bushi','midao','twshijun'],['zhu']],
 			wutugu:['male','qun',15,['ranshang','hanyong']],
 			sp_caiwenji:['female','wei',3,['chenqing','mozhi']],
 			zhugeguo:['female','shu',3,['qirang','yuhua']],
@@ -6469,6 +6469,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 						dialog.classList.add('scroll2');
 						dialog.classList.add('fullwidth');
 						dialog.classList.add('fullheight');
+						ui.arena.classList.add('choose-to-move');
 						dialog.buttonss=[];
 						
 						var list=['协力锻造的玩家','妨碍锻造的玩家']
@@ -6553,6 +6554,11 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 						game.pause();
 					}
 					'step 4'
+					game.broadcastAll(function(){
+						setTimeout(function(){
+							ui.arena.classList.remove('choose-to-move');
+						},500);
+					})
 					game.delay(2);
 					var num1=0,num2=0;
 					for(var i of event.cards2[0]) num1+=get.number(i,false);
@@ -15237,15 +15243,12 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 					}).set('choiceList',['获得技能〖妄尊〗',str]).set('choice',choice);
 					'step 2'
 					if(result.control=='选项一'){
-						player.addSkill('rewangzun');
-						player.popup('rewangzun');
+						player.addSkillLog('rewangzun');
 					}
 					else{
 						player.draw(2);
 						if(event.list){
-							player.addSkill(event.list);
-							player.popup(event.list[0]);
-							player.storage.zhuSkill_yjixi=event.list;
+							for(var i of event.list) player.addSkillLog(event.list);
 							game.broadcastAll(function(list){
 								game.expandSkills(list);
 								for(var i of list){
@@ -15884,7 +15887,6 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 						}
 					}
 					player.addAdditionalSkill('weidi',list);
-					player.storage.zhuSkill_weidi=list;
 					game.broadcastAll(function(list){
 						game.expandSkills(list);
 						for(var i of list){
@@ -15990,16 +15992,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 				trigger:{player:'phaseZhunbeiBegin'},
 				animationColor:'thunder',
 				skillAnimation:'legend',
-				filter:function(event,player){
-					return !player.storage.yongdi;
-				},
-				init:function(player){
-					player.storage.yongdi=false;
-				},
 				mark:true,
-				intro:{
-					content:'limited'
-				},
 				direct:true,
 				content:function(){
 					'step 0'
@@ -16011,7 +16004,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 						var att=get.attitude(player,target);
 						if(att<=1) return 0;
 						var mode=get.mode();
-						if(mode=='identity'||(mode=='versus'&&_status.mode=='four')){
+						if(mode=='identity'||(mode=='versus'&&(_status.mode=='four'||_status.mode=='guandu'))){
 							if(target.name&&lib.character[target.name]){
 								for(var i=0;i<lib.character[target.name][3].length;i++){
 									if(lib.skill[lib.character[target.name][3][i]].zhuSkill){
@@ -16024,36 +16017,23 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 					}).set('goon',!player.hasUnknown());
 					'step 1'
 					if(result.bool){
-						player.awakenSkill('yongdi');
-						player.storage.yongdi=true;
-						player.logSkill('yongdi',result.targets);
 						var target=result.targets[0];
-						target.gainMaxHp(true);
+						player.logSkill('yongdi',target);
+						player.awakenSkill('yongdi');
+						target.gainMaxHp();
 						target.recover();
 						var mode=get.mode();
-						if(mode=='identity'||(mode=='versus'&&_status.mode=='four')||mode=='doudizhu'){
-							if(target.name&&lib.character[target.name]){
-								var skills=lib.character[target.name][3];
-								target.storage.zhuSkill_yongdi=[];
-								for(var i=0;i<skills.length;i++){
-									var info=lib.skill[skills[i]];
-									if(info.zhuSkill){
-										target.storage.zhuSkill_yongdi.push(skills[i]);
-										if(info.init){
-											info.init(target);
-										}
-										if(info.init2){
-											info.init2(target);
-										}
-									}
-								}
-							}
+						var skills=target.getStockSkills(true,true).filter(skill=>{
+							if(target.hasSkill(skill)) return false;
+							var info=get.info(skill);
+							return info&&info.zhuSkill;
+						});
+						if(skills.length){
+							for(var i of skills) target.addSkillLog(i);
 						}
 					}
 				},
-				ai:{
-					expose:0.2
-				}
+				ai:{expose:0.2},
 			},
 			regushe:{
 				audio:'gushe',
@@ -22453,7 +22433,6 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 				},
 				viewAs:{
 					name:"huogong",
-					nature:"fire",
 				},
 				viewAsFilter:function (player){
 					if(player.hasSkill('huoji')) return false;

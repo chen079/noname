@@ -154,6 +154,99 @@
 		extensionPack:{},
 		cardType:{},
 		hook:{globaltrigger:{},globalskill:{}},
+		//函数钩子
+		hooks:{
+			// 本体势力的颜色
+			addGroup:[(id,_short,_name,config)=>{
+				if("color" in config&&config.color!=null){
+					let color1,color2,color3,color4;
+					if (typeof config.color=="string"&&/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(config.color)){
+						let c1=parseInt(`0x${item[1].slice(1, 3)}`);
+						let c2=parseInt(`0x${item[1].slice(3, 5)}`);
+						let c3=parseInt(`0x${item[1].slice(5, 7)}`);
+						color1=color2=color3=color4=[c1,c2,c3,1];
+					}
+					else if(Array.isArray(config.color)&&config.color.length==4){
+						if(config.color.every(item=>Array.isArray(item))){
+							color1=config.color[0];
+							color2=config.color[1];
+							color3=config.color[2];
+							color4=config.color[3];
+						}
+						else color1=color2=color3=color4=config.color;
+					}
+					if(color1&&color2&&color3&&color4){
+						const cs=lib.linq.cselector;
+						const g1=cs.group(
+							cs.of(
+								cs.class("player","identity"),
+								cs.isAttr("data-color",`"${id}"`)
+							),
+							cs.of(
+								"div",
+								cs.isAttr("data-nature",`"${id}"`)
+							),
+							cs.of(
+								"span",
+								cs.isAttr("data-nature",`"${id}"`)
+							)
+						);
+						const g2=cs.group(
+							cs.of(
+								"div",
+								cs.isAttr("data-nature",`"${id}m"`)
+							),
+							cs.of(
+								"span",
+								cs.isAttr("data-nature",`"${id}m"`)
+							)
+						);
+						const g3=cs.group(
+							cs.of(
+								"div",
+								cs.isAttr("data-nature",`"${id}mm"`)
+							),
+							cs.of(
+								"span",
+								cs.isAttr("data-nature",`"${id}mm"`)
+							)
+						);
+						let result={};
+						result[g1]={
+							textShadow:cs.group(
+								"black 0 0 1px",
+								`rgba(${color1.join()}) 0 0 2px`,
+								`rgba(${color2.join()}) 0 0 5px`,
+								`rgba(${color3.join()}) 0 0 10px`,
+								`rgba(${color4.join()}) 0 0 10px`
+							)
+						};
+						result[g2]={
+							textShadow:cs.group(
+								"black 0 0 1px",
+								`rgba(${color1.join()}) 0 0 2px`,
+								`rgba(${color2.join()}) 0 0 5px`,
+								`rgba(${color3.join()}) 0 0 5px`,
+								`rgba(${color4.join()}) 0 0 5px`,
+								"black 0 0 1px"
+							)
+						};
+						result[g3]={
+							textShadow:cs.group(
+								"black 0 0 1px",
+								`rgba(${color1.join()}) 0 0 2px`,
+								`rgba(${color2.join()}) 0 0 2px`,
+								`rgba(${color3.join()}) 0 0 2px`,
+								`rgba(${color4.join()}) 0 0 2px`,
+								"black 0 0 1px"
+							)
+						};
+						game.dynamicStyle.addObject(result);
+						lib.groupnature[id]=id;
+					}
+				}
+			}],
+		},
 		hookmap:{},
 		imported:{},
 		layoutfixed:['chess','tafang','stone'],
@@ -2270,6 +2363,7 @@
 											ui.css.border_stylesheet.remove();
 										}
 										ui.css.border_stylesheet=lib.init.sheet();
+										ui.css.border_stylesheet.id="ui.css.border";
 										ui.css.border_stylesheet.sheet.insertRule('#window .player>.framebg{display:block;background-image:url("'+fileLoadedEvent.target.result+'")}',0);
 										ui.css.border_stylesheet.sheet.insertRule('.player>.count{z-index: 3 !important;border-radius: 2px !important;text-align: center !important;}',0);
 									};
@@ -7168,6 +7262,56 @@
 				generator:item=>gnc.is.generator(item)
 			}
 		},
+		comparator:{
+			e:function(){
+				if(arguments.length==0) return false;
+				if(arguments.length==1) return true;
+				for(let i=1;i<arguments.length;++i) if(arguments[i]!==arguments[0])return false;
+				return true;
+			},
+			ei:function(){
+				if(arguments.length==0) return false;
+				if(arguments.length==1) return true;
+				for(let i=1;i<arguments.length;++i) if(arguments[i]===arguments[0])return true;
+				return false;
+			},
+			ne:function(){
+				if(arguments.length==0) return false;
+				if(arguments.length==1) return true;
+				for(let i=1;i<arguments.length;++i) if(arguments[i]===arguments[0])return false;
+				return true;
+			},
+			nei:function(){
+				if(arguments.length==0) return false;
+				if(arguments.length==1) return true;
+				for(let i=1;i<arguments.length;++i) if(arguments[i]!==arguments[0])return true;
+				return false;
+			},
+			te:function(){
+				if(arguments.length==0)return false;
+				if(arguments.length==1)return arguments[0]!==null;
+				const type=typeof arguments[0];
+				for(let i=1;i<arguments.length;++i) if(type!==arguments[i])return false;
+				return true;
+			}
+		},
+		creation:{},
+		linq:{
+			cselector:{
+				hasAttr:name=>`[${name}]`,
+				isAttr:(name,item)=>`[${name}=${item}]`,
+				inAttr:(name,item)=>`[${name}~=${item}]`,
+				conAttr:(name,item)=>`[${name}*=${item}]`,
+				onAttr:(name,item)=>`[${name}|=${item}]`,
+				bgnAttr:(name,item)=>`[${name}^=${item}]`,
+				endAttr:(name,item)=>`[${name}^=${item}]`,
+				merge:function(){return Array.from(arguments).join(" ");},
+				of:function(){return Array.from(arguments).join("");},
+				class:function(){return `.${Array.from(arguments).join(".")}`;},
+				group:function(){return Array.from(arguments).join(",");},
+				media:type=>`@media ${type}`
+			}
+		},
 		init:{
 			init:function(){
 				if(typeof __dirname==='string'&&__dirname.length){
@@ -8238,6 +8382,27 @@
 					delete _status.htmlbg;
 
 					window.game=game;
+					game.dynamicStyle.init();
+					Object.defineProperty(lib.creation,"a",{
+						enumerable:true,
+						get:()=>[],
+						set:()=>null
+					});
+					Object.defineProperty(lib.creation,"o",{
+						enumerable:true,
+						get:()=>({}),
+						set:()=>null
+					});
+					Object.defineProperty(lib.creation,"no",{
+						enumerable:true,
+						get:()=>Object.create(null),
+						set:()=>null
+					});
+					Object.defineProperty(lib.creation,"s",{
+						enumerable:true,
+						get:()=>"",
+						set:()=>null
+					});
 					// node:path library alternative
 					if (typeof module!="object"||typeof module.exports!="object") lib.init.js(`${lib.assetURL}game`,"path.min",()=>{
 						lib.path=window._noname_path;
@@ -20183,6 +20348,11 @@
 						this.node.hp.hide();
 					}
 					if(skill!=false){
+						skills=skills.filter(skill=>{
+							var info=get.info(skill);
+							if(info&&info.zhuSkill&&!this.isZhu2()) return false;
+							return true;
+						});
 						for(var i=0;i<skills.length;i++){
 							this.addSkill(skills[i]);
 						}
@@ -20333,6 +20503,8 @@
 						this.removeSkill(info1[3][i]);
 					}
 					for(var i=0;i<info2[3].length;i++){
+						var info=get.info(info2[3][i]);
+						if(info&&info.zhuSkill&&!this.isZhu2()) continue;
 						this.addSkill(info2[3][i]);
 					}
 					if(Array.isArray(maxHp)){
@@ -22668,7 +22840,7 @@
 						next.targets=[];
 					}
 					if(next.card){
-						next.card=get.autoViewAs(next.card,false,next.player);
+						next.card=get.autoViewAs(next.card,next.cards);
 						var info=get.info(next.card);
 						if(info.changeTarget){
 							info.changeTarget(next.player,next.targets);
@@ -22680,9 +22852,6 @@
 							if(next.addedTargets.length){
 								next.addedTarget=next.addedTargets[0];
 							}
-						}
-						if(!next.card.isCard&&next.cards.length){
-							next.card.cards=next.cards.slice(0);
 						}
 					}
 					for(var i=0;i<next.targets.length;i++){
@@ -22954,7 +23123,7 @@
 						if(next.cards){
 							next.card=next.cards[0];
 							if(!next.skill){
-								next.card=get.autoViewAs(next.card,null,next.player);
+								next.card=get.autoViewAs(next.card,next.cards);
 							}
 						}
 					}
@@ -25511,7 +25680,7 @@
 					if(typeof card=='string'){
 						card={name:card};
 					}
-					card=get.autoViewAs(card,null,player);
+					card=get.autoViewAs(card);
 					var num=get.info(card).usable;
 					if(typeof num=='function') num=num(card,player);
 					num=game.checkMod(card,player,num,'cardUsable',player);
@@ -25963,22 +26132,25 @@
 				hasStockSkill:function(skill,arg1,arg2,arg3){
 					return game.expandSkills(this.getStockSkills(arg1,arg2,arg3)).contains(skill);
 				},
+				isZhu2:function(){
+					var player=this,mode=get.mode();
+					if(!this.isZhu) return false;
+					if(mode=='identity') return true;
+					if(mode=='versus'&&(_status.mode=='four'||_status.mode=='guandu')) return true;
+					return false;
+				},
 				hasZhuSkill:function(skill,player){
 					if(!this.hasSkill(skill)) return false;
-					var mode=get.mode();
-					if(mode=='identity'||(mode=='versus'&&(_status.mode=='four'||_status.mode=='guandu'))){
-						if(mode!='identity'){
-							if(player&&this.side!=player.side) return false;
+					if(player){
+						var mode=get.mode();
+						if(mode=='identity'&&_status.mode=='purple'){
+							if(this.identity.slice(0,1)!=player.identity.slice(0,1)) return false;
 						}
-						if(_status.mode=='purple'){
-							if(player&&this.identity.slice(0,1)!=player.identity.slice(0,1)) return false;
-						}
-						if(this.isZhu==true) return true;
-						for(var i in this.storage){
-							if(i.indexOf('zhuSkill_')==0&&this.storage[i].contains(skill)) return true;
+						if(mode=='versus'&&(_status.mode=='four'||_status.mode=='guandu')){
+							if(this.side!=player.side) return false;
 						}
 					}
-					return false;
+					return true;
 				},
 				hasGlobalTag:function(tag,arg){
 					var skills=lib.skill.global.slice(0);
@@ -29402,7 +29574,7 @@
 					var mod2=game.checkMod(card,player,event,'unchanged','cardEnabled2',player);
 					if(mod2!='unchanged') return mod2;
 				}
-				card=get.autoViewAs(card,null,player);
+				card=get.autoViewAs(card);
 				if(event==='forceEnable'){
 					var mod=game.checkMod(card,player,event,'unchanged','cardEnabled',player);
 					if(mod!='unchanged') return mod;
@@ -29436,7 +29608,7 @@
 				return true;
 			},
 			cardUsable2:function(card,player,event){
-				card=get.autoViewAs(card,null,player);
+				card=get.autoViewAs(card);
 				var info=get.info(card);
 				if(info.updateUsable=='phaseUse'){
 					event=event||_status.event;
@@ -29452,7 +29624,7 @@
 				else return(player.countUsed(card)<num);
 			},
 			cardUsable:function(card,player,event){
-				card=get.autoViewAs(card,null,player);
+				card=get.autoViewAs(card);
 				var info=get.info(card);
 				event=event||_status.event;
 				if(event.type=='chooseToUse_button') event=event.getParent();
@@ -32119,6 +32291,12 @@
 			}
 		},
 		suit:['club','spade','diamond','heart'],
+		suits:['club','spade','diamond','heart','none'],
+		color:{
+			black:['club','spade'],
+			red:['diamond','heart'],
+			none:['none'],
+		},
 		group:['wei','shu','wu','qun','jin','shen'],
 		nature:['fire','thunder','kami','ice','stab','poison'],
 		linked:['fire','thunder','kami','ice'],
@@ -32172,8 +32350,39 @@
 			'哥哥，交个朋友吧',
 			'妹子，交个朋友吧',
 		],
+		other:{
+			bool:(item)=>Boolean(item),
+			ignore:()=>{}
+		}
 	};
 	const game={
+		//addGroup
+		//基于钩子的添加势力方法
+		addGroup:(id,short,name,config)=>{
+			if(!id) throw new TypeError();
+			if(lib.comparator.te(short,"object")){
+				config=short;
+				short=null;
+			}
+			if(lib.comparator.te(name,"object")){
+				config=name;
+				name=null;
+			}
+			if(!lib.comparator.te(short,"string")&&short){
+				name=short;
+			}
+			lib.group.add(id);
+			if(short)lib.translate[id] = short;
+			if(name)lib.translate[`${id}2`] = name;
+			lib.onload.add(()=>{
+				for(const hook of lib.hooks.addGroup){
+					if(hook!=null&&typeof hook=="function"){
+						hook(id,short,name,config);
+					}
+				}
+			})
+			return id;
+		},
 		//Yingbian
 		//应变
 		yingbianEffect:function(event,content){
@@ -32190,6 +32399,78 @@
 		setSimpleYingbianCondition:(yingbianCondition,condition)=>game.broadcastAll((yingbianCondition,condition)=>lib.yingbian.condition.simple.set(yingbianCondition,condition),yingbianCondition,condition),
 		setYingbianEffect:(yingbianEffect,effect)=>game.broadcastAll((yingbianEffect,effect)=>lib.yingbian.effect.set(yingbianEffect,effect),yingbianEffect,effect),
 		setYingbianPrompt:(yingbian,prompt)=>game.broadcastAll((yingbian,prompt)=>lib.yingbian.prompt.set(yingbian,prompt),yingbian,prompt),
+		//动态CSS from libnodiz
+		dynamicStyle:{
+			init:()=>{
+				const that=game.dynamicStyle;
+				that._cache={};
+				that._cache.rules=[];
+				that._cache.style=document.createElement("style");
+				that._cache.style.id="game.dynamicStyle";
+				document.head.appendChild(that._cache.style);
+				that._cache.sheet = that._cache.style.sheet;
+				delete game.dynamicStyle.init;
+				return true;
+			},
+			translate:style=>{
+				let result=[];
+				for(const name in style){
+					result.push(`${name.replace(/([A-Z])/g, match => `-${match.toLowerCase()}`)}: ${style[name]};`);
+				}
+				return result.join(" ");
+			},
+			generate:(name, style)=>[`${name} {`, game.dynamicStyle.translate(style), "}"].join(" "),
+			has:name=>game.dynamicStyle._cache.rules.some(item=>item[0]==name),
+			get:name=>game.dynamicStyle.find(item=>item[0]==name)[1],
+			find:fn=>game.dynamicStyle._cache.rules.find(fn),
+			size:()=>game.dynamicStyle._cache.rules.length,
+			indexOf:name=>{
+				for (let i=0;i<game.dynamicStyle._cache.rules.length;++i){
+					if(name==game.dynamicStyle._cache.rules[i][0]) return i;
+				}
+				return -1;
+			},
+			add:(name,style)=>{
+				const that=game.dynamicStyle;
+				return that.update(name,that.has(name)?Object.assign({},that.get(name),style):style);
+			},
+			addObject:object=>{
+				const that=game.dynamicStyle;
+				let result=[];
+				for(const name in object){
+					result.push(that.add(name, object[name]));
+				}
+				return result;
+			},
+			remove:name=>{
+				const that=game.dynamicStyle;
+				if(!that.has(name)) return false;
+				const index=that.indexOf(name);
+				that._cache.rules.splice(index,1);
+				that._cache.sheet.deleteRule(index);
+				return true;
+			},
+			update:(name,style)=>{
+				const that=game.dynamicStyle;
+				try{
+					if(that.has(name)){
+						const index=that.indexOf(name);
+						that._cache.sheet.deleteRule(index);
+						that._cache.sheet.insertRule(that.generate(name,style),index);
+						that._cache.rules[index] = [name, style];
+					}else{
+						const index=that._cache.rules.length;
+						that._cache.rules.push([name,style]);
+						that._cache.sheet.insertRule(that.generate(name,style),index);
+					}
+					return true;
+				}
+				catch(e){
+					console.log(e);
+					return false;
+				}
+			}
+		},
 		//Add a background music to the config option
 		//在设置选项中添加一首背景音乐
 		addBackgroundMusic:(link,musicName,aozhan)=>{
@@ -35803,7 +36084,7 @@
 						else{
 							imgsrc='ext:'+extname+'/'+j+'.jpg';
 						}
-						const audiosrc='die:ext:'+extname+'/'+name+'.mp3';
+						const audiosrc='die:ext:'+extname+'/'+j+'.mp3';
 						pack[i][j][4].add(imgsrc);
 						pack[i][j][4].add(audiosrc);
 						if(pack[i][j][4].contains('boss')||
@@ -53779,6 +54060,12 @@
 				}
 				return false;
 			},
+			//是否是虚拟牌
+			vituralCard:card=>card.isCard||(!("cards" in card)||!Array.isArray(card.cards)||card.cards.length==0),
+			//是否是转化牌
+			convertedCard:card=>!card.isCard&&("cards" in card)&&Array.isArray(card.cards)&&card.cards.length>0,
+			//是否是实体牌
+			ordinaryCard:card=>card.isCard&&("cards" in card)&&Array.isArray(card.cards)&&card.cards.length==1,
 			//押韵判断
 			yayun:function(str1,str2){
 				if(str1==str2) return true;
@@ -54127,6 +54414,45 @@
 			}
 		},
 		autoViewAs:function(card,cards){
+			let _card;
+			if(get.itemtype(card)=='card'){
+				_card={
+					name:get.name(card),
+					suit:get.suit(card),
+					color:get.suit(card),
+					number:get.number(card),
+					nature:get.nature(card),
+					isCard:true,
+					cardid:card.cardid,
+					wunature:card.wunature,
+					storage:get.copy(card.storage),
+				};
+				if(Array.isArray(cards)) _card.cards=cards.slice(0);
+				else _card.cards=[card];
+			}
+			else{
+				_card=get.copy(card);
+				if(Array.isArray(cards)){
+					if(_card.cards){
+						_card.cards=cards.slice(0);
+					}
+					else{
+						_card.cards=cards.slice(0);
+						if(!lib.suits.includes(_card.suit)) _card.suit=get.suit(_card);
+						if(!Object.keys(lib.color).includes(_card.color)) _card.color=get.color(_card);
+						if(!_card.hasOwnProperty('number')) _card.number=get.number(card);
+						if(!_card.hasOwnProperty('nature')) _card.nature=get.nature(card);
+					}
+				}
+			}
+			const info=get.info(_card,false);
+			if(info.autoViewAs){
+				_card.name=info.autoViewAs;
+			}
+			return _card;
+		},
+		//deprecated
+		_autoViewAs:function(card,cards){
 			var info=get.info(card);
 			if(info.autoViewAs){
 				if(cards===false){
@@ -55409,17 +55735,17 @@
 				if(card.length==1) return get.suit(card[0],player);
 				return 'none';
 			}
-			else if(Array.isArray(card.cards)&&card.suit!='none'&&!lib.suit.contains(card.suit)){
+			else if(!card.hasOwnProperty('suit')&&Array.isArray(card.cards)){
 				return get.suit(card.cards,player);
 			}
 			else{
 				if(player!==false){
-					var owner=player||get.owner(card);
+					const owner=player||get.owner(card);
 					if(owner){
 						return game.checkMod(card,card.suit,'suit',owner);
 					}
 				}
-				if(lib.suit.contains(card.suit)) return card.suit;
+				if(lib.suits.contains(card.suit)) return card.suit;
 				return 'none';
 			}
 		},
@@ -55427,19 +55753,23 @@
 			if(!card) return;
 			if(Array.isArray(card)){
 				if(!card.length) return 'none';
-				var color=get.color(card[0],player);
-				for(var i=1;i<card.length;i++){
+				const color=get.color(card[0],player);
+				for(let i=1;i<card.length;i++){
 					if(get.color(card[i],player)!=color) return 'none';
 				}
 				return color;
 			}
-			else if(Array.isArray(card.cards)&&card.suit!='none'&&!lib.suit.contains(card.suit)){
+			else if(Object.keys(lib.color).includes(card.color)){
+				return card.color;
+			}
+			else if(Array.isArray(card.cards)&&!lib.suit.includes(card.suit)){
 				return get.color(card.cards,player);
 			}
 			else{
-				var suit=get.suit(card,player);
-				if(suit=='spade'||suit=='club') return 'black';
-				if(suit=='heart'||suit=='diamond') return 'red';
+				const suit=get.suit(card,player);
+				for(let i in lib.color){
+					if(lib.color[i].includes(suit)) return i;
+				}
 				return 'none';
 			}
 		},
@@ -55637,7 +55967,7 @@
 				var card=get.info(_status.event.skill).viewAs;
 				if(typeof card=='function') card=card(ui.selected.cards,_status.event.player);
 				if(card){
-					return get.autoViewAs(card,ui.selected.cards,_status.event.player);
+					return get.autoViewAs(card,ui.selected.cards);
 				}
 			}
 			if(_status.event._get_card){
@@ -55646,7 +55976,7 @@
 			var card=ui.selected.cards[0];
 			if(original) return card;
 			if(card){
-				card=get.autoViewAs(card,ui.selected.cards,_status.event.player);
+				card=get.autoViewAs(card,ui.selected.cards);
 			}
 			return card;
 		},
